@@ -15,15 +15,23 @@ typedef llu target_type;
 
 #define O_FILE_OPEN (O_RDWR)
 
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
 target_type target_dest;
 char target_filename[1024];
 int fd;
+
+void myerror(const char * str)
+{
+    fprintf(stderr, ANSI_COLOR_RED "%s\n" ANSI_COLOR_RESET, str);
+}
 
 void work();
 void stop_count();
 
 void deep_sleep();
-void start_counting();
+int start_counting();
 target_type read_target();
 target_type my_atoi(const char * str);
 void write_target(target_type val);
@@ -51,15 +59,28 @@ int main(int argc, char** argv)
 
     strcpy(target_filename, argv[2]);
 
-    signal(SIGUSR1, work);
-    signal(SIGUSR2, stop_count);
+    struct sigaction handler_work;
+    struct sigaction handler_stop_count;
 
-    start_counting();
+    memset(&handler_work, 0x00, sizeof(handler_work));
+    memset(&handler_stop_count, 0x00, sizeof(handler_stop_count));
 
-    return 0;
+    handler_work.sa_handler = &work;
+    handler_stop_count.sa_handler = &stop_count;
+
+    if(sigaction(SIGUSR1, &handler_work, NULL) < 0) {
+        myerror("Failed to set SIGUSR1 handler");
+        return -1;
+    }
+    if(sigaction(SIGUSR2, &handler_stop_count, NULL) < 0) {
+        myerror("Failed to set SIGUSR2 handler");
+        return -1;
+    }
+
+    return start_counting();
 }
 
-void start_counting()
+int start_counting()
 {
     if(access(target_filename, F_OK) != 0) {
         fd = open(target_filename, O_FILE_OPEN |O_CREAT, 0644);
@@ -96,6 +117,8 @@ void start_counting()
     next_pid = pid[1];
     pidx = 0;
     deep_sleep();
+
+    return 0;
 }
 
 void work()
@@ -117,12 +140,13 @@ void work()
 
 void stop_count()
 {
-    if(next_pid == root_pid) {
+    if(next_pid == root_pid) { // child 2
         clock_t end_time = clock();
         printf("%f seconds passed\n", (double)(end_time - begin_time) / CLOCKS_PER_SEC);
+    } else if(getpid() == root_pid) { // parent
+        kill(pid[1], SIGUSR2);
+        kill(pid[2], SIGUSR2);
     }
-    kill(pid[1], SIGUSR2);
-    kill(pid[2], SIGUSR2);
     exit(1);
 }
 
