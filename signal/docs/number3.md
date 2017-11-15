@@ -1,4 +1,4 @@
 # #3
 
-* Related file: [src/mysignaltest.c](signal/src/mysignaltest.c) => sigtest
+* Related file: [src/mysignaltest.c](/signal/src/mysignaltest.c) => sigtest
 

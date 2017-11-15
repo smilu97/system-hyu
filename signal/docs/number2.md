@@ -1,6 +1,6 @@
 # #2 프로세스 끼리 돌아가며 카운트 하기
 
-* Related file: [src/count.c](signal/src/count.c) => count
+* Related file: [src/count.c](/signal/src/count.c) => count
 
 ### 목적
 

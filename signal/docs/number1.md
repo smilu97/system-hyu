@@ -1,6 +1,6 @@
 # #1 시그널 핸들러 바꿔보기
 
-- Related file: [src/stop.c](signal/src/stop.c) => stop
+- Related file: [src/stop.c](/signal/src/stop.c) => stop
 
 ### 목적
 
