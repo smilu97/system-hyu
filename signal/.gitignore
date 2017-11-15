@@ -1,5 +1,5 @@
 *.dSYM
 bin/*
--bin/.gitkeep
+!bin/.gitkeep
 .vscode
 *.txt
