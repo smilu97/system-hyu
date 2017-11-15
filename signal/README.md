@@ -8,9 +8,9 @@
 
 # Sub-problems
 
-빌드는 make로 빌드하면 [bin폴더](signal/bin)에 생성됩니다.
+빌드는 make로 빌드하면 [bin폴더](bin)에 생성됩니다.
 
-* [#1](signal/docs/number1.md)
-* [#2](signal/docs/number2.md)
-* [#3](signal/docs/number3.md)
+* [#1](docs/number1.md)
+* [#2](docs/number2.md)
+* [#3](docs/number3.md)
 
