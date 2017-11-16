@@ -15,28 +15,40 @@
 
 #include "matrix.h"
 
-#define MATRIX_SIZE 1000
-
 /*
- * Argument 1: the number of threads
+ * Argument 1: The size of matrix
+ * Argument 2: The number of threads to use
  */
 int main(int argc, char** argv)
 {
+    if(argc < 3) {
+        printf("syntax: %s <size of matrix> <num of threads>\n", argv[0]);
+        exit(1);
+    }
+
+    int matrix_size = atoi(argv[1]);
+    int num_thread  = atoi(argv[2]);
+
+    struct timespec begin, end;
+
     matrix a, b, c;
 
-    init_matrix(&a, MATRIX_SIZE, MATRIX_SIZE);
-    init_matrix(&b, MATRIX_SIZE, MATRIX_SIZE);
-    init_matrix(&c, MATRIX_SIZE, MATRIX_SIZE);
+    init_matrix(&a, matrix_size, matrix_size);
+    init_matrix(&b, matrix_size, matrix_size);
+    init_matrix(&c, matrix_size, matrix_size);
 
-    clock_t begin_time = clock();
-    mul_matrix(&a, &b, &c);
-    clock_t end_time = clock();
+    clock_gettime(CLOCK_MONOTONIC, &begin);
+    mul_matrix_mt(&a, &b, &c, num_thread);
+    clock_gettime(CLOCK_MONOTONIC, &end);
 
     destroy_matrix(&a);
     destroy_matrix(&b);
     destroy_matrix(&c);
 
-    printf("time: %f\n", (double)(end_time - begin_time) / CLOCKS_PER_SEC);
+    double elapsed = (end.tv_sec - begin.tv_sec);
+    elapsed += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;
+
+    printf("elapsed: %f\n", elapsed);
 
     return 0;
 }
