@@ -10,3 +10,5 @@
 
 * sig_int가 시작될때, 전역변수를 하나 잡아서 `doing_sig_int` 값을 1로 만든다.
 * 알람에 대한 핸들러가 doing_sig_int가 1이면 종료시키지 않고 그냥 리턴한다.
+
+![스크린샷 2017-11-16 오후 1.05.25](../static/number3_screenshot.png)
