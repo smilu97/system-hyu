@@ -16,4 +16,4 @@ build: $(SRC)main.c
 
 test:
 	make build
-	./main
+	./main matrices/A.txt matrices/B.txt 4
