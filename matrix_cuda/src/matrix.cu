@@ -11,7 +11,7 @@ matrix * read_mat(const char * filepath)
 
      int cap = 16000000;
      int size = 0;
-     float * arr = (float*)malloc(sizeof(float)*cap);
+     lld * arr = (lld*)malloc(sizeof(lld)*cap);
      if(arr == NULL) {
          fprintf(stderr, "Failed to allocate memory to load matrix\n");
          fclose(fd);
@@ -22,7 +22,7 @@ matrix * read_mat(const char * filepath)
      int tmp;
      while(~fscanf(fd, "%d", &tmp)) {
          if(size >= cap) {
-             float * narr = (float*)malloc(sizeof(float)*cap*2);
+             lld * narr = (lld*)malloc(sizeof(lld)*cap*2);
              if(narr == NULL) {
                  fprintf(stderr, "Matrix is too big!\n");
                  fclose(fd);
@@ -32,8 +32,9 @@ matrix * read_mat(const char * filepath)
              memcpy(narr, arr, sizeof(float)*size);
              free(arr);
              arr = narr;
+             cap <<= 1;
          }
-         arr[size++] = (float)tmp;
+         arr[size++] = (lld)tmp;
          if(fgetc(fd) == '\n' && col_size == -1) {
              col_size = size;
          }
@@ -46,7 +47,7 @@ matrix * read_mat(const char * filepath)
          free(arr);
          return NULL;
      }
-     memcpy(ret->v, arr, size);
+     memcpy(ret->v, arr, sizeof(lld)*size);
      free(arr);
 
      return ret;
@@ -59,7 +60,7 @@ matrix * create_mat(int m, int n)
         fprintf(stderr, "Failed to allocate ret: create_mat\n");
         return NULL;
     }
-    ret->v = (float*)malloc(sizeof(float)*m*n);
+    ret->v = (lld*)malloc(sizeof(lld)*m*n);
     if(ret->v == NULL) {
         fprintf(stderr, "Toob big too create: create_mat()");
         free(ret);
@@ -71,23 +72,41 @@ matrix * create_mat(int m, int n)
     return ret;
 }
 
-long long cuda_matmul(float * A, float * B, float * C, int m, int n, int l)
+void save_mat(matrix * mat)
 {
-    float *cA, *cB, *cC;
+    FILE * fd = fopen("result.txt", "w");
 
-    cudaMalloc(&cA, sizeof(float)*m*n);
-    cudaMalloc(&cB, sizeof(float)*n*l);
-    cudaMalloc(&cC, sizeof(float)*m*l);
+    for(int i=0; i<mat->m; ++i) {
+        for(int j=0; j<mat->n; ++j) {
+            fprintf(fd, "%lld ", (lld)mat->v[i*mat->n+j]);
+        }
+        fprintf(fd, "\n");
+    }
 
-    cudaMemcpy(cA, A, sizeof(float)*m*n, cudaMemcpyHostToDevice);
-    cudaMemcpy(cB, B, sizeof(float)*n*l, cudaMemcpyHostToDevice);
+    fclose(fd);
+}
 
-    dim3 dimBlock(m,l);
-    dim3 dimGrid(1,1);
+long long cuda_matmul(lld * A, lld * B, lld * C, int m, int n, int l)
+{
+    lld *cA, *cB, *cC;
+
+    cudaMalloc(&cA, sizeof(lld)*m*n);
+    cudaMalloc(&cB, sizeof(lld)*n*l);
+    cudaMalloc(&cC, sizeof(lld)*m*l);
+
+    cudaMemcpy(cA, A, sizeof(lld)*m*n, cudaMemcpyHostToDevice);
+    cudaMemcpy(cB, B, sizeof(lld)*n*l, cudaMemcpyHostToDevice);
+
+    int dbx = m > 16 ? 16 : m;
+    int dby = l > 16 ? 16 : l;
+    int dgx = m > 16 ? m/16 : 1;
+    int dgy = l > 16 ? l/16 : 1;
+    dim3 dimBlock(dbx,dby);
+    dim3 dimGrid(dgx,dgy);
 
     cuda_matmul_unit<<<dimGrid,dimBlock>>>(cA,cB,cC,n,l);
 
-    cudaMemcpy(C, cC, sizeof(float)*m*l, cudaMemcpyDeviceToHost);
+    cudaMemcpy(C, cC, sizeof(lld)*m*l, cudaMemcpyDeviceToHost);
 
     cudaFree(cA);
     cudaFree(cB);
@@ -99,12 +118,12 @@ long long cuda_matmul(float * A, float * B, float * C, int m, int n, int l)
     return ret;
 }
 
-__global__ void cuda_matmul_unit(float * A, float * B, float * C, int n, int l)
+__global__ void cuda_matmul_unit(lld * A, lld * B, lld * C, int n, int l)
 {
-    int tx = threadIdx.x;
-    int ty = threadIdx.y;
+    int tx = blockIdx.x * blockDim.x + threadIdx.x;
+    int ty = blockIdx.y * blockDim.y + threadIdx.y;
 
-    float ret = 0;
+    lld ret = 0;
 
     for(int i=0; i<n; ++i) {
         ret += A[ty*n+i] * B[i*l+tx];

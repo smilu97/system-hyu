@@ -40,6 +40,8 @@ int main(int argc, char** argv)
     printf("sum: %lld\n", sum);
     printf("ellapse: %f\n", ellapse);
 
+    save_mat(C);
+
     return 0;
 }
 
