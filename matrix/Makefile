@@ -2,7 +2,7 @@
 SRC := src/
 CC  := gcc
 INC := includes/
-CFLAGS := -g -I $(INC) -lpthread
+CFLAGS := -g -I $(INC)
 
 SRCS := $(SRC)main.c $(SRC)matrix.c
 
