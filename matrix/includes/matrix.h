@@ -9,7 +9,7 @@
 
 #define PRINT_DEBUG
 
-typedef int m_element;
+typedef long long m_element;
 
 typedef struct matrix {
     m_element ** v;
