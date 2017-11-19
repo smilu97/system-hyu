@@ -1,0 +1,3 @@
+main
+src/*.o
+matrices/sample*.txt
