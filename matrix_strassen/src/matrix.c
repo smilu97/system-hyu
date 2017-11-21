@@ -152,7 +152,7 @@ void * matmul_8_work(void * varg)
     matcpy(&nb, &(arg->b), n2, 0);
 
     matrix k = matmul(na, nb);
-    matadd(&(arg->c), &k, n2, 0);
+    matcpy(&(arg->c), &k, n2, 0);
 
     free(k.v);
     free(na.v);
@@ -171,7 +171,9 @@ matrix matmul_8(matrix a, matrix b)
     int n2 = n/2;
     int nn2 = n*n/2;
 
-    matrix c = new_matrix(n);
+    matrix c[2];
+    c[0] = new_matrix(n);
+    c[1] = new_matrix(n);
 
     for(int i=0; i<2; ++i) {
         for(int j=0; j<2; ++j) {
@@ -180,7 +182,7 @@ matrix matmul_8(matrix a, matrix b)
                 args[th_idx].a.v += i * nn2 + k * n2;
                 args[th_idx].b = b;
                 args[th_idx].b.v += k * nn2 + j * n2;
-                args[th_idx].c = c;
+                args[th_idx].c = c[k];
                 args[th_idx].c.v += i * nn2 + j * n2;
                 pthread_create(threads+th_idx, NULL, matmul_8_work, args+th_idx);
                 ++th_idx;
@@ -191,6 +193,9 @@ matrix matmul_8(matrix a, matrix b)
     for(int i=0; i<8; ++i) {
         pthread_join(threads[i], NULL);
     }
+    
+    matadd(c, c+1, n, 0);
+    free(c[1].v);
 
     return c;
 }
