@@ -197,5 +197,5 @@ matrix matmul_8(matrix a, matrix b)
     matadd(c, c+1, n, 0);
     free(c[1].v);
 
-    return c;
+    return c[0]
 }
