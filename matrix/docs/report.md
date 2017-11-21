@@ -1,12 +1,12 @@
-# 시스템 프로그래밍 멀티 쓰레딩 실습
+# Matrix multiplication using multi-threading approach
 
-작성자: 김영진, 김정현
+작성자: 김영진 2016025241, 김정현 2014004448
 
 Github Repo: https://github.com/smilu97/system-hyu
 
 ### 목표
 
-4000 by 4000 행렬 곱셈을 멀티쓰레딩을 이용해서 속도 개선함
+Multi-threading approach을 이용한 행렬 곱셈의 속도 개선.
 
 ### 방법
 
