@@ -1,17 +1,5 @@
 
-#include <stdio.h>
-#include <time.h>
-#include <string.h>
-#include <stdlib.h>
-
-typedef long long lld;
-
-typedef struct matrix
-{
-    lld * v;
-    int w;
-    int n;
-} matrix;
+#include "matrix.h"
 
 void matcpy(matrix * dest, matrix * src, int sz, int offset)
 {
@@ -151,40 +139,47 @@ matrix matmul(matrix a, matrix b)
     return ret;
 }
 
-int main(int argc, char** argv)
+void * matmul_8_work(void * varg)
 {
-    struct timespec begin, end;
+    matmul_8_arg * arg = (matmul_8_arg*)varg;
 
-    matrix a = new_matrix(4096);
-    matrix b = new_matrix(4096);
-
-    FILE * fd = fopen("matrices/sample1.txt", "r");
-    for(int i=0; i<4000; ++i) {
-        for(int j=0; j<4000; ++j) {
-            fscanf(fd, "%lld", a.v + (i*4000 + j));
-        }
-    }
-    fclose(fd);
-
-    fd = fopen("matrices/sample2.txt", "r");
-    for(int i=0; i<4000; ++i) {
-        for(int j=0; j<4000; ++j) {
-            fscanf(fd, "%lld", b.v + (i*4000 + j));
-        }
-    }
-    fclose(fd);
-
-    printf("Read all\n");
-
-    clock_gettime(CLOCK_MONOTONIC, &begin);
-    matrix c = matmul(a, b);
-    clock_gettime(CLOCK_MONOTONIC, &end);
-
-    double time = (end.tv_sec - begin.tv_sec) + (end.tv_nsec - begin.tv_nsec) / 1000000000.0f;
-
-    printf("time: %f\n", time);
-
-    free(c.v);
+    matrix k = matmul(arg->a, arg->b);
+    matadd(&(arg->c), &k, arg->a.n, 0);
+    free(k.v);
 
     return 0;
+}
+
+matrix matmul_8(matrix a, matrix b)
+{
+    matmul_8_arg args[8];
+    pthread_t threads[8];
+    int th_idx = 0;
+
+    int n = a.n;
+    int n2 = n/2;
+    int nn2 = n*n/2;
+
+    matrix c = new_matrix(n);
+
+    for(int i=0; i<2; ++i) {
+        for(int j=0; j<2; ++j) {
+            for(int k=0; k<2; ++k) {
+                args[th_idx].a = a;
+                args[th_idx].a.v += i * nn2 + k * n2;
+                args[th_idx].b = b;
+                args[th_idx].b.v += k * nn2 + j * n2;
+                args[th_idx].c = c;
+                args[th_idx].c.v += i * nn2 + j * n2;
+                pthread_create(threads+th_idx, NULL, matmul_8_work, args+th_idx);
+                ++th_idx;
+            }
+        }
+    }
+
+    for(int i=0; i<8; ++i) {
+        pthread_join(threads[i], NULL);
+    }
+
+    return c;
 }
