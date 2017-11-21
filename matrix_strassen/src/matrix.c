@@ -143,9 +143,20 @@ void * matmul_8_work(void * varg)
 {
     matmul_8_arg * arg = (matmul_8_arg*)varg;
 
-    matrix k = matmul(arg->a, arg->b);
-    matadd(&(arg->c), &k, arg->a.n, 0);
+    int n = arg->a.n;
+    int n2 = n/2;
+
+    matrix na = new_matrix(n2);
+    matrix nb = new_matrix(n2);
+    matcpy(&na, &(arg->a), n2, 0);
+    matcpy(&nb, &(arg->b), n2, 0);
+
+    matrix k = matmul(na, nb);
+    matadd(&(arg->c), &k, n2, 0);
+
     free(k.v);
+    free(na.v);
+    free(nb.v);
 
     return 0;
 }
