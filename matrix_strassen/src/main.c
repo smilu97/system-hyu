@@ -37,6 +37,10 @@ int main(int argc, char** argv)
 
     printf("time: %f\n", time);
 
+    lld sum = 0;
+    for(int i=0; i<4096; ++i) for(int j=0; j<4096; ++j) sum += c.v[i*4096+j];
+    printf("sum: %lld\n", sum);
+
     free(c.v);
 
     return 0;
