@@ -1,0 +1,40 @@
+./main matrices/sample1.txt matrices/sample2.txt 1
+read: matrices/sample1.txt(m: 4000, n: 4000)
+read: matrices/sample2.txt(m: 4000, n: 4000)
+sum: 1599733421594486293
+elapsed: 808.676669
+./main matrices/sample1.txt matrices/sample2.txt 2
+read: matrices/sample1.txt(m: 4000, n: 4000)
+read: matrices/sample2.txt(m: 4000, n: 4000)
+sum: 1599733421594486293
+elapsed: 339.470650
+./main matrices/sample1.txt matrices/sample2.txt 4
+read: matrices/sample1.txt(m: 4000, n: 4000)
+read: matrices/sample2.txt(m: 4000, n: 4000)
+sum: 1599733421594486293
+elapsed: 130.231520
+./main matrices/sample1.txt matrices/sample2.txt 8
+read: matrices/sample1.txt(m: 4000, n: 4000)
+read: matrices/sample2.txt(m: 4000, n: 4000)
+sum: 1599733421594486293
+elapsed: 111.119652
+./main matrices/sample1.txt matrices/sample2.txt 10
+read: matrices/sample1.txt(m: 4000, n: 4000)
+read: matrices/sample2.txt(m: 4000, n: 4000)
+sum: 1599733421594486293
+elapsed: 206.860916
+./main matrices/sample1.txt matrices/sample2.txt 20
+read: matrices/sample1.txt(m: 4000, n: 4000)
+read: matrices/sample2.txt(m: 4000, n: 4000)
+sum: 1599733421594486293
+elapsed: 238.607720
+./main matrices/sample1.txt matrices/sample2.txt 30
+read: matrices/sample1.txt(m: 4000, n: 4000)
+read: matrices/sample2.txt(m: 4000, n: 4000)
+sum: 1599332581543775311
+elapsed: 238.930132
+./main matrices/sample1.txt matrices/sample2.txt 40
+read: matrices/sample1.txt(m: 4000, n: 4000)
+read: matrices/sample2.txt(m: 4000, n: 4000)
+sum: 1599733421594486293
+elapsed: 233.982203

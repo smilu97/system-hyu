@@ -87,6 +87,9 @@ long long mul_matrix_mt(matrix * p_arg1, matrix * p_arg2, matrix * p_dest, int n
 
     pthread_t * threads = (pthread_t*)malloc(sizeof(pthread_t) * num_threads);
     mat_mul_arg * args = (mat_mul_arg*)malloc(sizeof(mat_mul_arg) * num_threads);
+
+    pthread_barrier_t bar;
+    pthread_barrier_init(&bar, NULL, num_threads);
     
     int begin_cur = 0;
     for(int i=0; i<num_threads; ++i) {
@@ -97,6 +100,7 @@ long long mul_matrix_mt(matrix * p_arg1, matrix * p_arg2, matrix * p_dest, int n
         args[i].p_arg1 = p_arg1;
         args[i].p_arg2 = p_arg2;
         args[i].p_dest = p_dest;
+        args[i].bar = &bar;
 
         begin_cur += batch_size;
 
@@ -141,6 +145,8 @@ void * mul_matrix_mt_thread(void * p_arg)
     }
 
     arg->row_sum = row_sum;
+
+    pthread_barrier_wait(arg->bar);
 
     return NULL;
 }

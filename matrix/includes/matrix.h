@@ -6,10 +6,11 @@
 #include <pthread.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #define PRINT_DEBUG
 
-typedef int m_element;
+typedef long long m_element;
 
 typedef struct matrix {
     m_element ** v;
@@ -18,6 +19,7 @@ typedef struct matrix {
 } matrix;
 
 typedef struct mat_mul_arg {
+    pthread_barrier_t *bar;
     int r_begin;
     int r_end;
     long long row_sum;
