@@ -16,6 +16,7 @@ Github Repo: https://github.com/smilu97/system-hyu
 
 $`A*B=C`$ 를 수행한다고 할 때, A와 B에서는 Read밖에 일어나지 않으므로 C에 Write하는 부분을 여러 조각으로 쪼갤 수 있다. 쪼개는 방법은 단순히 C에 들어갈 각 원소의 자리마다 나눌 수 있는데, 이번 과제에서는 Row마다 나누는 것으로 한다.
 
+<<<<<<< HEAD
 #### [pthread_create](http://man7.org/linux/man-pages/man3/pthread_create.3.html)
 
 쓰레드를 생성하는 순간부터 새로운 작업을 시작한다.
