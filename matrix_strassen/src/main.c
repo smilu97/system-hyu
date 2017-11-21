@@ -14,7 +14,7 @@ int main(int argc, char** argv)
     FILE * fd = fopen("matrices/sample1.txt", "r");
     for(int i=0; i<4000; ++i) {
         for(int j=0; j<4000; ++j) {
-            fscanf(fd, "%lld", a.v + (i*4000 + j));
+            fscanf(fd, "%lld", a.v + (i*4096 + j));
         }
     }
     fclose(fd);
@@ -22,7 +22,7 @@ int main(int argc, char** argv)
     fd = fopen("matrices/sample2.txt", "r");
     for(int i=0; i<4000; ++i) {
         for(int j=0; j<4000; ++j) {
-            fscanf(fd, "%lld", b.v + (i*4000 + j));
+            fscanf(fd, "%lld", b.v + (i*4096 + j));
         }
     }
     fclose(fd);
