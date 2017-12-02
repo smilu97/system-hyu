@@ -1,1 +1,6 @@
-bin
+bin/test_small_mutex
+bin/test_small_spin
+bin/test_small_hybrid
+bin/test_big_mutex
+bin/test_big_spin
+bin/test_big_hybrid
