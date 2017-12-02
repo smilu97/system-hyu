@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 
 	clock_gettime(CLOCK_MONOTONIC, &begin);
 
-	pthread_spin_init(&g_spin, NULL);
+	pthread_spin_init(&g_spin, 0);
 
 	/*
 	 * Create a threads by the thread_count value received as

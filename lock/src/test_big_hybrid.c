@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <time.h>
+#include "hybrid.h"
 
 long g_count = 0;
+hybrid_lock_t g_hybrid;
 
 void *thread_func(void *arg)
 {
@@ -18,6 +21,7 @@ void *thread_func(void *arg)
 	 */
 	for (i = 0; i<count; i++) {
 
+        hybrid_lock_lock(&g_hybrid);
 		/********************** Critical Section **********************/
 
 		/*
@@ -29,6 +33,7 @@ void *thread_func(void *arg)
 
 		g_count++;
 		/**************************************************************/
+        hybrid_lock_unlock(&g_hybrid);
 	}
 }
 
@@ -37,6 +42,8 @@ int main(int argc, char *argv[])
 	pthread_t *tid;
 	long i, thread_count, value;
 	int rc;
+
+    struct timespec begin, end;
 
 	/*
 	 * Check that the program has three arguments
@@ -67,6 +74,10 @@ int main(int argc, char *argv[])
 		exit(0);
 	}
 
+    clock_gettime(CLOCK_MONOTONIC, &begin);
+
+    hybrid_lock_init(&g_hybrid);
+
 	/*
 	 * Create a threads by the thread_count value received as
 	 * an argument. Each threads will increase g_count for
@@ -77,7 +88,7 @@ int main(int argc, char *argv[])
 		if (rc) {
 			fprintf(stderr, "pthread_create() error\n");
 			free(tid);
-			pthread_mutex_destroy(&g_mutex);
+			hybrid_lock_destroy(&g_hybrid);
 			exit(0);
 		}
 	}
@@ -90,16 +101,23 @@ int main(int argc, char *argv[])
 		if (rc) {
 			fprintf(stderr, "pthread_join() error\n");
 			free(tid);
-			pthread_mutex_destroy(&g_mutex);
+			hybrid_lock_destroy(&g_hybrid);
 			exit(0);
 		}
 	}
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    double time = (end.tv_sec - begin.tv_sec) + (end.tv_nsec - begin.tv_nsec) / 1000000000.0f;
+
+    hybrid_lock_destroy(&g_hybrid);
 
 	/*
 	 * Print the value of g_count.
 	 * It must be (thread_count * value)
 	 */ 
 	printf("value: %ld\n", g_count);
+    printf("time: %.4f\n", time);
 
 	free(tid);
 }

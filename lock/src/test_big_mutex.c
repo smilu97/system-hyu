@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <time.h>
 
 long g_count = 0;
+pthread_mutex_t g_mutex;
 
 void *thread_func(void *arg)
 {
@@ -18,6 +20,7 @@ void *thread_func(void *arg)
 	 */
 	for (i = 0; i<count; i++) {
 
+        pthread_mutex_lock(&g_mutex);
 		/********************** Critical Section **********************/
 
 		/*
@@ -29,6 +32,7 @@ void *thread_func(void *arg)
 
 		g_count++;
 		/**************************************************************/
+        pthread_mutex_unlock(&g_mutex);
 	}
 }
 
@@ -37,6 +41,8 @@ int main(int argc, char *argv[])
 	pthread_t *tid;
 	long i, thread_count, value;
 	int rc;
+
+    struct timespec begin, end;
 
 	/*
 	 * Check that the program has three arguments
@@ -67,6 +73,10 @@ int main(int argc, char *argv[])
 		exit(0);
 	}
 
+    clock_gettime(CLOCK_MONOTONIC, &begin);
+
+    pthread_mutex_init(&g_mutex, NULL);
+
 	/*
 	 * Create a threads by the thread_count value received as
 	 * an argument. Each threads will increase g_count for
@@ -95,11 +105,18 @@ int main(int argc, char *argv[])
 		}
 	}
 
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    double time = (end.tv_sec - begin.tv_sec) + (end.tv_nsec - begin.tv_nsec) / 1000000000.0f;
+
+    pthread_mutex_destroy(&g_mutex);
+
 	/*
 	 * Print the value of g_count.
 	 * It must be (thread_count * value)
 	 */ 
 	printf("value: %ld\n", g_count);
+    printf("time: %.4f\n", time);
 
 	free(tid);
 }

@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <time.h>
 
 long g_count = 0;
+pthread_spinlock_t g_spin;
 
 void *thread_func(void *arg)
 {
@@ -18,6 +20,7 @@ void *thread_func(void *arg)
 	 */
 	for (i = 0; i<count; i++) {
 
+        pthread_spin_lock(&g_spin);
 		/********************** Critical Section **********************/
 
 		/*
@@ -29,6 +32,7 @@ void *thread_func(void *arg)
 
 		g_count++;
 		/**************************************************************/
+        pthread_spin_unlock(&g_spin);
 	}
 }
 
@@ -37,6 +41,8 @@ int main(int argc, char *argv[])
 	pthread_t *tid;
 	long i, thread_count, value;
 	int rc;
+
+    struct timespec begin, end;
 
 	/*
 	 * Check that the program has three arguments
@@ -67,6 +73,10 @@ int main(int argc, char *argv[])
 		exit(0);
 	}
 
+    clock_gettime(CLOCK_MONOTONIC, &begin);
+
+    pthread_spin_init(&g_spin, 0);
+
 	/*
 	 * Create a threads by the thread_count value received as
 	 * an argument. Each threads will increase g_count for
@@ -77,7 +87,7 @@ int main(int argc, char *argv[])
 		if (rc) {
 			fprintf(stderr, "pthread_create() error\n");
 			free(tid);
-			pthread_mutex_destroy(&g_mutex);
+			pthread_spin_destroy(&g_spin);
 			exit(0);
 		}
 	}
@@ -90,16 +100,23 @@ int main(int argc, char *argv[])
 		if (rc) {
 			fprintf(stderr, "pthread_join() error\n");
 			free(tid);
-			pthread_mutex_destroy(&g_mutex);
+			pthread_spin_destroy(&g_spin);
 			exit(0);
 		}
 	}
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    double time = (end.tv_sec - begin.tv_sec) + (end.tv_nsec - begin.tv_nsec) / 1000000000.0f;
+
+    pthread_spin_destroy(&g_spin);
 
 	/*
 	 * Print the value of g_count.
 	 * It must be (thread_count * value)
 	 */ 
 	printf("value: %ld\n", g_count);
+    printf("time: %.4f\n", time);
 
 	free(tid);
 }

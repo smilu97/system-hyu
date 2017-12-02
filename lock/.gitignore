@@ -4,3 +4,4 @@ bin/test_small_hybrid
 bin/test_big_mutex
 bin/test_big_spin
 bin/test_big_hybrid
+*.o
