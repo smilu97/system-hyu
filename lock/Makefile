@@ -3,7 +3,7 @@ CC := gcc
 
 CFLAGS := -g
 
-RUN_SMALL := 10 100000
+RUN_SMALL := 10 10000000
 RUN_BIG := 4 10
 
 all: build
