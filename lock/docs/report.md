@@ -30,59 +30,57 @@ hybrid_lock은 spin lock과 mutex를 복합적으로 사용하여 구현한다. 
 	    pthread_spin_init(&(lock->_s), 0);
 	}
 
-hybrid_lock_t을 초기화하기 위해서는 구조체 내의 lock을 초기화한다. spin_lock과 mutex에 대해 기존에 존재하는 초기화 함수를 이용하여 초기화한다. 
+hybrid_lock_t을 초기화하기 위해서는 구조체 내의 lock을 초기화한다. spin_lock과 mutex에 대해 기존에 존재하는 초기화 함수를 이용하여 초기화한다.
 
 #### Lock : void hybrid_lock_lock(hybrid _lock_t * lock);
 
 	void hybrid_lock_lock(hybrid_lock_t * lock)
-    {
-        struct timeval begin, end;
-        double try_cost;
-        unsigned long long try_count = 100;
+	{
+	    struct timeval begin, end;
+	    double try_cost;
+	    unsigned long long try_count = 100;
+	
+	    gettimeofday(&begin, NULL);
+	    while(try_count--) {
+	        if(pthread_spin_trylock(&(lock->_s)) == 0) {
+	            if(pthread_mutex_trylock(&(lock->_m)) != 0) {
+	                pthread_spin_unlock(&(lock->_s));
+	                continue;
+	            }
+	            return;
+	        }
+	    }
+	    gettimeofday(&end, NULL);
+	
+	    try_cost = (end.tv_sec - begin.tv_sec) + (end.tv_usec - begin.tv_usec) / 1000000.0f;
+	    try_count = (unsigned long long)(100.0f / try_cost);
+	
+	#ifdef PPRINT
+	    printf("try_cost: %.10f\n", try_cost);
+	    printf("try_count: %d\n", try_count);
+	#endif
+	
+	    while(try_count--) {
+	        if(pthread_spin_trylock(&(lock->_s)) == 0) {
+	            if(pthread_mutex_trylock(&(lock->_m)) != 0) {
+	                pthread_spin_unlock(&(lock->_s));
+	                continue;
+	            }
+	            return;
+	        }
+	    }
+	
+	#ifdef PPRINT
+	    printf("begin to mutex lock\n");
+	#endif
+	
+	    pthread_mutex_lock(&(lock->_m));
+	    pthread_spin_lock(&(lock->_s));
+	}
 
-        gettimeofday(&begin, NULL);
-        while(try_count--) {
-            if(pthread_spin_trylock(&(lock->_s)) == 0) {
-                if(pthread_mutex_trylock(&(lock->_m)) != 0) {
-                    pthread_spin_unlock(&(lock->_s));
-                    continue;
-                }
-                return;
-            }
-        }
-        gettimeofday(&end, NULL);
+hybrid_lock_t 를 획득하기 위해 대기할 때, 1초 동안 spin_lock을 이용하여 lock을 대기한다. 이를 구현하기 위해 spin_trylock을 이용하여 lock 획득을 시도한다. 스핀락을 얻게 되면 뮤텍스락도 잡을 수 있는지 시도해본다. block된 쓰레드에게 우선권이 있으므로 spin으로 잡았어도, 그 후에 뮤텍스를 잡지 못했다면 spin을 양보한다.
 
-        try_cost = (end.tv_sec - begin.tv_sec) + (end.tv_usec - begin.tv_usec) / 1000000.0f;
-        try_count = (unsigned long long)(100.0f / try_cost);
-
-    #ifdef PPRINT
-        printf("try_cost: %.10f\n", try_cost);
-        printf("try_count: %d\n", try_count);
-    #endif
-
-        while(try_count--) {
-            if(pthread_spin_trylock(&(lock->_s)) == 0) {
-                if(pthread_mutex_trylock(&(lock->_m)) != 0) {
-                    pthread_spin_unlock(&(lock->_s));
-                    continue;
-                }
-                return;
-            }
-        }
-
-    #ifdef PPRINT
-        printf("begin to mutex lock\n");
-    #endif
-
-        pthread_mutex_lock(&(lock->_m));
-        pthread_spin_lock(&(lock->_s));
-    }
-
-hybrid_lock_t 를 획득하기 위해 대기할 때, 1초 동안 spin_lock을 이용하여 lock을 대기한다. 이를 구현하기 위해 spin_trylock을 이용하여 lock 획득을 시도한다. 
-
-1초가 지나도 lock을 획득하지 못하였다면, 해당 thread를 차단한다.
-
-만약 lock을 획득한다면, mutex를 획득하기 위해  mutex_trylock을 실행한다. mutex도 획득을 하게 되면 함수를 종료한다.
+1초가 지나도 lock을 획득하지 못하였다면, 뮤텍스 락을 얻기 시도하여, block상태로 들어가고 뮤텍스락을 얻게 되면 무조건 spin락도 또한 잡게 한다.
 
 
 
@@ -95,6 +93,8 @@ hybrid_lock_t 를 획득하기 위해 대기할 때, 1초 동안 spin_lock을 �
 	}
 
 현재 hybrid_lock_t 내부에서 각각 획득되어 있는 mutex와 spin_lock을 해제하는 함수다. 초기화하는 함수와 마찬가지로 각 lock에 대한 기존의 unlock함수를 이용하여 잠금을 해제한다.
+
+블록된 쓰레드에게 우선권이 있으므로 뮤텍스를 먼저 해제한다.
 
 #### Destruction : void hybrid_lock_destroy(hybrid_lock_t * lock);
 
@@ -134,4 +134,7 @@ hybrid_lock_t 를 획득하기 위해 대기할 때, 1초 동안 spin_lock을 �
 
 ### 결과3 gettimeofday 효율
 
+![result_sh](../static/sh_result.png)
+
+한 번의 lock에서 1초동안 spin하기 위해 계산해낸 spin횟수는 위와 같은 양상을 보이는데, 4812747개의 락들 중 8333333번을 선택한 락들이 905547개로 가장 많았으며 평균 6947578.066번 정도였으며, 표준편차는 1418687이었다.
 
