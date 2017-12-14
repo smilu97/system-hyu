@@ -5,6 +5,7 @@
 
 #include "common.h"
 
-
+void connect();
+void sigusr1_handler(int signo);
 
 #endif

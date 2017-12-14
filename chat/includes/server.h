@@ -5,14 +5,21 @@
 
 #include "common.h"
 
-typedef struct  {
-    int qid;
-} WatcherArgs;
+#define INIT_LAST_QID 999
 
 int init_server();
-int destroy_server();
+void destroy_server();
 void sigint_handler(int signo);
-void listen();
+void sigusr1_handler(int signo);
+int listen();
 void * watch(void * varg);
+
+int create_msg_queue();
+UserLink * find_user(pid_t pid);
+UserLink * create_user(pid_t pid);
+int remove_user(pid_t pid);
+
+int send_broadcast_msg(char * msg);
+int send_personal_msg(UserLink * usr, pid_t from, char * msg);
 
 #endif

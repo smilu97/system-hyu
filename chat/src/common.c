@@ -10,6 +10,12 @@ void init_common(Common * p_common)
 {
     init_MessageCont(&(p_common->cont));
     p_common->server_pid = getpid();
+    p_common->waiting = 0;
+    p_common->first_user = NULL;
+    pthread_mutex_init(&(p_common->reg_mutex), NULL);
+    for(int idx = 0; idx < USER_POOL_SIZE; ++idx) {
+        p_common->users[idx] = NULL;
+    }
 }
 
 void init_MessageCont(MessageCont * p_cont)
@@ -36,4 +42,12 @@ void strcpy_cnt(char * dest, char * src, int max_len)
         dest[idx] = *pch;
     }
     if(idx < max_len) dest[idx] = '\0';
+}
+
+int hash_int(int x, int mod)
+{
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = (x >> 16) ^ x;
+    return x % mod;
 }
