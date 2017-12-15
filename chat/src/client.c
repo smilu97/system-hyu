@@ -24,6 +24,7 @@ int main(int argc, char** argv, char** env)
     setvbuf(stdout, NULL, _IONBF, 0);
 
     init_MessageCont(&personMsg);
+    now_person = 0;
 
     connect();
 
@@ -51,8 +52,7 @@ int main(int argc, char** argv, char** env)
         case 'p':
             scanf("%d", &pid);
             mode = MODE_PERSON;
-            now_person = pid;
-            set_personal();
+            set_personal(pid);
             break;
         case 'q':
             disconnect();
@@ -213,6 +213,9 @@ void set_broadcast()
 
 void set_personal(pid_t usr)
 {
+    if(now_person != usr) {
+        init_MessageCont(&personMsg);
+    }
     getchar();
     input_buf_len = 0;
     print_pmessages();

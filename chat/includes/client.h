@@ -22,7 +22,7 @@ void print_pmessages();
 
 void show_informations();
 void set_broadcast();
-void set_personal();
+void set_personal(pid_t usr);
 
 void send_broadcast_msg(char * msg);
 void send_personal_msg(char * msg, pid_t to_pid);
