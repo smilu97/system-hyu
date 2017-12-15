@@ -1,8 +1,20 @@
 
 #include "server.h"
 
+/*
+ * 공유 메모리를 할당한 주소를 가리키기 위함
+ */
 Common * p_common;
+
+/*
+ * 마지막으로 할당된 메시지큐의 아이디
+ */
 int last_qid;
+
+/*
+ * 할당한 공유메모리의 아이디. 해제할 때 필요하기 때문에
+ * 가지고있어야 한다.
+ */
 int shm_id;
 
 int main(int argc, char** argv, char** env)
