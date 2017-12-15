@@ -14,3 +14,7 @@ build: $(SRCS)
 
 	$(CC) $(CFLAGS) -o bin/client src/client.o src/common.o -lpthread
 	$(CC) $(CFLAGS) -o bin/server src/server.o src/common.o -lpthread
+
+clean:
+	rm src/common.o src/client.o src/server.o
+	-ipcrm -M 4444

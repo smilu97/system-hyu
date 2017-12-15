@@ -9,8 +9,9 @@
 
 int init_server();
 void destroy_server();
-void sigint_handler(int signo);
+void  sigint_handler(int signo);
 void sigusr1_handler(int signo);
+void sigusr2_handler(int signo);
 int listen();
 void * watch(void * varg);
 
@@ -19,7 +20,7 @@ UserLink * find_user(pid_t pid);
 UserLink * create_user(pid_t pid);
 int remove_user(pid_t pid);
 
-int send_broadcast_msg(char * msg);
+int send_broadcast_msg(char * msg, pid_t pid);
 int send_personal_msg(UserLink * usr, pid_t from, char * msg);
 
 #endif

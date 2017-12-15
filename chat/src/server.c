@@ -3,6 +3,7 @@
 
 Common * p_common;
 int last_qid;
+int shm_id;
 
 int main(int argc, char** argv, char** env)
 {
@@ -15,13 +16,13 @@ int main(int argc, char** argv, char** env)
 
 int init_server()
 {
-    int shm = shmget(SHM_ID, sizeof(Common), IPC_CREAT | SHMGET_GRANT);
-    if(shm == -1) {
+    shm_id = shmget(SHM_ID, sizeof(Common), IPC_CREAT | SHMGET_GRANT);
+    if(shm_id == -1) {
         fprintf(stderr, "Failed to shmget\n");
         return -1;
     }
     printf("Created shared mem\n");
-    p_common = (Common*)shmat(shm, NULL, 0);
+    p_common = (Common*)shmat(shm_id, NULL, 0);
     printf("Attached shared mem\n");
     last_qid = INIT_LAST_QID;
     init_common(p_common);
@@ -38,13 +39,23 @@ void destroy_server()
         remove_user(p_common->first_user->user->pid);
     printf("Server exit");
     shmdt(p_common);
+    shmctl(shm_id, IPC_RMID, NULL);
 
     exit(1);
 }
 
 void sigusr1_handler(int signo)
 {
-    create_user(p_common->waiting);
+    pid_t pid = p_common->waiting;
+    printf("Request detected from (%d)\n", pid);
+    create_user(pid);
+}
+
+void sigusr2_handler(int signo)
+{
+    pid_t pid = p_common->waiting;
+    printf("Request detected to disconnect from (%d)\n", pid);
+    remove_user(pid);
 }
 
 void sigint_handler(int signo)
@@ -56,6 +67,7 @@ int listen()
 {
     if(signal(SIGINT,   sigint_handler) == SIG_ERR) return -1;
     if(signal(SIGUSR1, sigusr1_handler) == SIG_ERR) return -1;
+    if(signal(SIGUSR2, sigusr2_handler) == SIG_ERR) return -1;
 
     while(1) {
         pause();
@@ -79,10 +91,14 @@ void * watch(void * varg)
         }
         p_msg = &(q_msg.msg);
 
+        if(1) {
+            printf("[%d, %s]: %s\n", usr->pid, p_msg->type == MT_BROAD ? "BROAD" : "PERSON", p_msg->msg);
+        }
+
         if(p_msg->type == MT_BROAD) {
-            send_broadcast_msg(p_msg->msg);
+            send_broadcast_msg(p_msg->msg, usr->pid);
         } else if(p_msg->type == MT_PERSON) {
-            UserLink * target = find_user(p_msg->pid);
+            UserLink * target = find_user(p_msg->to_pid);
             if(target != NULL) {
                 send_personal_msg(target, usr->pid, p_msg->msg);
             }
@@ -120,7 +136,7 @@ UserLink * create_user(pid_t pid)
 
     usr->next = p_common->users[h_idx];
     usr->prev = NULL;
-    usr->next->prev = usr;
+    if(usr->next) usr->next->prev = usr;
     p_common->users[h_idx] = usr;
 
     usr->s_qid = create_msg_queue();
@@ -137,7 +153,7 @@ UserLink * create_user(pid_t pid)
     p_common->first_user = node;
     usr->node = node;
 
-    kill(p_common->waiting, SIGUSR1);
+    kill(pid, SIGUSR1);
 
     return usr;
 }
@@ -163,6 +179,9 @@ int remove_user(pid_t pid)
 
             free(node);
             free(cur);
+
+            kill(pid, SIGUSR2);
+            
             return 0;
         }
         cur = cur->next;
@@ -171,12 +190,15 @@ int remove_user(pid_t pid)
     return -1;
 }
 
-int send_broadcast_msg(char * msg)
+int send_broadcast_msg(char * msg, pid_t pid)
 {
-    push_MessageCont(&(p_common->cont), msg);
+    push_MessageCont(&(p_common->cont), msg, pid, 0);
 
     QMessage qmsg;
+    qmsg.type = MSG_TYPE;
     qmsg.msg.type = MT_BROAD;
+    qmsg.msg.from_pid = pid;
+    qmsg.msg.to_pid = 0;
     strcpy_cnt(qmsg.msg.msg, msg, MSG_SIZE);
 
     UserLinkNode * cur = p_common->first_user;
@@ -192,8 +214,10 @@ int send_broadcast_msg(char * msg)
 int send_personal_msg(UserLink * usr, pid_t from, char * msg)
 {
     QMessage qmsg;
+    qmsg.type = MSG_TYPE;
     qmsg.msg.type = MT_BROAD;
-    qmsg.msg.pid = from;
+    qmsg.msg.from_pid = from;
+    qmsg.msg.to_pid = usr->pid;
     strcpy_cnt(qmsg.msg.msg, msg, MSG_SIZE);
 
     msgsnd(usr->s_qid, &qmsg, sizeof(Message), 0);

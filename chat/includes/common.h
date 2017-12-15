@@ -10,12 +10,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/shm.h>
 #include <signal.h>
 #include <pthread.h>
+
+#define CLEAR_CONSOLE "\033[H\033[J"
 
 #define SHM_ID 4444
 #define MSG_SIZE 1024
@@ -36,7 +39,8 @@
  */
 typedef struct Message {
     int type;
-    pid_t pid;
+    pid_t from_pid;
+    pid_t to_pid;
     char msg[MSG_SIZE];
 } Message;
 
@@ -94,8 +98,10 @@ typedef struct Common {
 void gotoxy(int x, int y);
 void init_common(Common * p_common);
 void init_MessageCont(MessageCont * p_cont);
-void push_MessageCont(MessageCont * p_cont, char * msg);
+void push_MessageCont(MessageCont * p_cont, char * msg, pid_t from_pid, pid_t to_pid);
 void strcpy_cnt(char * dest, char * src, int max_len);
 int hash_int(int val, int mod);
+void clear_console();
+void clear_line();
 
 #endif

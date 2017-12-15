@@ -24,14 +24,16 @@ void init_MessageCont(MessageCont * p_cont)
     p_cont->msg_num = 0;
 }
 
-void push_MessageCont(MessageCont * p_cont, char * msg)
+void push_MessageCont(MessageCont * p_cont, char * msg, pid_t from_pid, pid_t to_pid)
 {
     int idx = (p_cont->start_idx + p_cont->msg_num) % MAX_MSG;
-    if(p_cont->start_idx == idx) {
+    if(p_cont->msg_num >= MAX_MSG) {
         ++(p_cont->start_idx);
         --(p_cont->msg_num);
     }
     strcpy_cnt(p_cont->msg[idx].msg, msg, MSG_SIZE);
+    p_cont->msg[idx].from_pid = from_pid;
+    p_cont->msg[idx].to_pid = to_pid;
     ++(p_cont->msg_num);
 }
 
@@ -50,4 +52,14 @@ int hash_int(int x, int mod)
     x = ((x >> 16) ^ x) * 0x45d9f3b;
     x = (x >> 16) ^ x;
     return x % mod;
+}
+
+void clear_console()
+{
+    printf("%s", CLEAR_CONSOLE);
+}
+
+void clear_line()
+{
+    printf("%c[2K", 27);
 }
