@@ -127,7 +127,7 @@ Server process를 실행할때 할당되는 shared memory를 초기화하는 함
 
 Message container내에 새로운 메세지를 넣은 함수다. 이는 broadcast mode로 선택되었을 때 server process가 모든 client process의 message queue로 보내거나, client간에 personal mode로 선택되어 메세지를 보낼 경우에 사용된다. Container에 넣기 전에 circular queue의 조건을 만족시키기 위한 index와 객체의 갯수를 확인한 후에 넣는다.
 
-### Server and its structures and functions
+### Functions : Server
 
 #### Function : int main(int argc, char** argv, char** env);
 
@@ -296,24 +296,13 @@ Message queue에 메세지가 들어가있는지 계속해서 확인한다. 메�
 
 
 #### Function : UserLink * create_user(pid_t pid);	
-    /*
-     * 새로운 유저와의 연결을 생성함
-     */
+
     UserLink * create_user(pid_t pid)
     {
-        /*
-         * 유저 객체를 위한 메모리 영역을 할당한다.
-         * UserLink 가 유저객체의 정보를 담고 있으며,
-         * UserLinkNode는 해쉬맵으로 관리되는 UserLink대신, Linear Iteration을 
-         * 지원하기 위해 따로 관리되는 링크드 리스트 노드이다.
-         */
         UserLink * usr = (UserLink*)malloc(sizeof(UserLink));
         UserLinkNode * node = (UserLinkNode*)malloc(sizeof(UserLinkNode));
         usr->pid = pid;
 
-        /*
-         * 해쉬 맵의 해당 리스트 맨 앞에 새로운 유저객체를 넣는다.
-         */
         int h_idx = hash_int((int)pid, USER_POOL_SIZE);
 
         usr->next = p_common->users[h_idx];
@@ -321,52 +310,282 @@ Message queue에 메세지가 들어가있는지 계속해서 확인한다. 메�
         if(usr->next) usr->next->prev = usr;
         p_common->users[h_idx] = usr;
 
-        /*
-         * UserLinkNode의 링크드리스트에 넣는다.
-         */
         node->user = usr;
         node->next = p_common->first_user;
         node->prev = NULL;
         p_common->first_user = node;
         usr->node = node;
 
-        /*
-         * 해당 유저의 프로세스와 통신하기 위해 새로운 메시지 큐를 2개 만든다.
-         * s_qid를 번호로 가지는 메시지 큐는 서버가 메시지를 보내는 용도로,
-         * c_qid를 번호로 가지는 메시지 큐는 클라이언트가 메시지를 보내는 용도로 사용된다.
-         * 
-         * 그렇기 때문에 서버는 c_qid 메시지큐를 계속 검사하며
-         * 클라이언트는 s_qid 메시지큐를 계속 검사한다.
-         */
         usr->s_qid = create_msg_queue();
         usr->c_qid = create_msg_queue();
 
-        /*
-         * 모든 유저들의 메시지 큐들을 개별적으로 검사하기 위해 유저마다 쓰레드를
-         * 하나 씩 생성해준다.
-         */
         pthread_create(&(usr->th), NULL, watch, usr);
 
-        /*
-         * 유저의 연결요청에 대한 처리가 끝나면, 통신에 사용될 메시지큐의 번호를
-         * 클라이언트에게 알려주기 위해 공유메모리에 그 번호들을 적어놓는다.
-         * 
-         * 클라이언트들은 연결요청에 대한 응답을 받으면 이 번호를 읽어서 통신을
-         * 시작한다.
-         */
         p_common->reg_result.s_qid = usr->s_qid;
         p_common->reg_result.c_qid = usr->c_qid;
 
-        /*
-         * 클라이언트에게 연결 요청이 모두 처리되었음을 알려준다.
-         */
         kill(pid, SIGUSR1);
 
-        /*
-         * 처리가 끝난 유저의 유저객체를 반환함.
-         */
         return usr;
     }
 
-### Client and its structures and functions
+새로운 유저와의 연결을 생성하는 함수다. 해쉬맵의 해당 리스트 맨 앞에 새로 추가된 객체를 추가한다. 그 후 UserLinkNode의 linked list에 넣는다. 
+
+해당 유저의 프로세스와 통신하기 위해 새로운 메세지 큐를 2개 생성한다. s_qid를 번호로 가지는 메시지 큐는 서버가 메시지를 보내는 용도로, c_qid를 번호로 가지는 메시지 큐는 클라이언트가 메시지를 보내는 용도로 사용된다. 그렇기 때문에 서버는 c_qid 메시지큐를 계속 검사하며 클라이언트는 s_qid 메시지큐를 계속 검사한다.
+
+유저의 연결요청에 대한 처리가 끝나면, 통신에 사용될 메세지 큐의 번호를 클라이언트에게 알려주기 위해 공유 메모리에 그 번호들을 적는다. 클라이언트들은 연결 요청에 대한 응답을 받으면 이 번호를 읽어서 통신을 시작한다. 
+
+#### Function : int remove_user(pid_t pid);
+
+    int remove_user(pid_t pid)
+    {
+        int h_idx = hash_int((int)pid, USER_POOL_SIZE);
+
+        UserLink * cur = p_common->users[h_idx];
+        while(cur != NULL) {
+            if(cur->pid == pid) {
+               
+                pthread_cancel(cur->th);
+
+                if(cur->next) cur->next->prev = cur->prev;
+                if(cur->prev) cur->prev->next = cur->next;
+                if(p_common->users[h_idx] == cur) p_common->users[h_idx] = cur->next;
+
+                UserLinkNode * node = cur->node;
+                if(node->next) node->next->prev = node->prev;
+                if(node->prev) node->prev->next = node->next;
+                if(p_common->first_user == node) p_common->first_user = node->next;
+
+                msgctl(cur->s_qid, IPC_RMID, NULL);
+                msgctl(cur->c_qid, IPC_RMID, NULL);
+
+                free(node);
+                free(cur);
+
+                kill(pid, SIGUSR2);
+                
+                return 0;
+            }
+            cur = cur->next;
+        }
+
+        return -1;
+    }
+
+해당 유저와의 연결을 해제하는 함수이다. 해당 유저를 찾기 위해 유저객체가 체인 해쉬맵의 어느 리스트에 있는지 확인한다. 순차적으로 다음과 같은 순서로 진행한다. 해쉬맵에 존재하는 유저객체를 제외한다. 리스트에 존재하는 유저 객체를 제외한다. 유저와의 통신에 사용하던 두 개의 메시지큐를 삭제한다. 유저객체를 해제한다.
+
+#### Function : int send_broadcast_msg(char * msg, pid_t pid);
+
+    int send_broadcast_msg(char * msg, pid_t pid)
+    {
+        push_MessageCont(&(p_common->cont), msg, pid, 0);
+
+        QMessage qmsg;
+        qmsg.type = MSG_TYPE;
+        qmsg.msg.type = MT_BROAD;
+        qmsg.msg.from_pid = pid;
+        qmsg.msg.to_pid = 0;
+        strcpy_cnt(qmsg.msg.msg, msg, MSG_SIZE);
+
+        UserLinkNode * cur = p_common->first_user;
+        while(cur != NULL) {
+            UserLink * user = cur->user;
+            msgsnd(user->s_qid, &qmsg, sizeof(Message), 0);
+            cur = cur->next;
+        }
+
+        return 0;
+    }
+
+공유 메모리의 메세지 컨테이너에 새로운 메세지를 넣고 연결되어 있는 모든 유저들에게 새로운 전체 메세지가 있음을 알린다. 메세지 컨테이너에 새로운 메세지를 넣는다. 메세지를 큐로 보내기 위한 객체를 준비한 후 모든 유저들에게 알린다.
+
+#### Function : int send_personal_msg(UserLink * usr, pid_t from, char * msg);
+
+    int send_personal_msg(UserLink * usr, pid_t from, char * msg)
+    {
+        QMessage qmsg;
+        qmsg.type = MSG_TYPE;
+        qmsg.msg.type = MT_BROAD;
+        qmsg.msg.from_pid = from;
+        qmsg.msg.to_pid = usr->pid;
+        strcpy_cnt(qmsg.msg.msg, msg, MSG_SIZE);
+
+        msgsnd(usr->s_qid, &qmsg, sizeof(Message), 0);
+
+        return 0;
+    }
+
+특정 유저에게 메세지를 전송한다.
+
+### Functions : Client
+
+#### Function : int main(int argc, char** argv, char** env);
+
+    int main(int argc, char** argv, char** env)
+    {
+
+        setvbuf(stdin, NULL, _IONBF, 0);
+        setvbuf(stdout, NULL, _IONBF, 0);
+
+        init_MessageCont(&personMsg);
+        now_person = 0;
+
+        connect();
+
+        if(connected == 0) return -1;
+
+        signal(SIGWINCH, update_winsize);
+        update_winsize(0);
+        
+        char cmd;
+        mode = MODE_INPUT;
+        pid_t pid;
+
+        pthread_create(&receiver, NULL, receive, NULL);
+
+        printf("Input > ");
+        while(scanf("%c", &cmd) != EOF) {
+            switch(cmd) {
+            case 'i':
+                show_informations();
+                break;
+            case 'b':
+                mode = MODE_BROAD;
+                set_broadcast();
+                break;
+            case 'p':
+                scanf("%d", &pid);
+                mode = MODE_PERSON;
+                set_personal(pid);
+                break;
+            case 'q':
+                disconnect();
+                exit(1);
+                break;
+            default:
+                show_informations();
+                break;
+            }
+            if(cmd != '\n' && cmd != 'b') while(getchar() != '\n');
+            mode = MODE_INPUT;
+            printf("Input > ");
+        }
+        pthread_cancel(receiver);
+
+        return 0;
+    }
+
+개인 메세지를 보관하기 위한 메세지 컨테이너를 초기화한 후 서버에 연결을 요청한다. winsize를 사용할 수 있도록 만들어준다. SIGWINCH 시그널의 핸들러를 설정해서 지속적으로 winsize를 업데이트하도록 한다. 서버로부터 오는 메시지를 받기 위한 쓰레드를 생성한다. 
+
+Client을 사용할 mode를 i, b, p, q 중에 선택한다.
+
+#### Function : void connect();
+
+    void connect()
+    {
+
+        int shm = shmget(SHM_ID, sizeof(Common), SHMGET_GRANT);
+        if(shm == -1) {
+
+            fprintf(stderr, "Failed to shmget. Maybe server is not opened\n");
+            return;
+        }
+        printf("Found shared mem\n");
+
+        p_common = (Common*)shmat(shm, NULL, 0);
+        printf("Attached shared mem\n");
+
+        my_pid = getpid();
+        printf("your pid: %d\n", my_pid);
+
+        pthread_mutex_lock(&(p_common->reg_mutex));
+
+        p_common->waiting = my_pid;
+
+        if(signal(SIGUSR1, sigusr1_handler) == SIG_ERR) {
+            printf("Failed to set SIGUSR1 handler\n");
+            return;
+        }
+
+        s_qid = -1;
+        c_qid = -1;
+
+        kill(p_common->server_pid, SIGUSR1);
+        printf("Requested connection to server\n");
+
+        pause();
+
+        while(s_qid == -1);
+        printf("Responsed OK to connect\n");
+        
+        connected = 1;
+
+        if(signal(SIGINT, sigint_handler) == SIG_ERR) {
+            printf("Failed to set SIGINT handler\n");
+        }
+    }
+
+서버가 생성한 공유 메모리를 가져온다. 서버와 연결작업을 수행하기 위해 공유메모리 일부를 사용하는데, 다른 클라이언트들과의 충돌을 방지하기 위해 뮤텍스를 획득한다. 이 뮤텍스테 대한 해제는 이 함수에서는 이루어지지 않는다. 서버에서 연결에 대한 연결에 대한 처리가 모두 끝났을 때 보내는 SIGUSR1 시그널에 대한 핸들러에서 이루어진다.
+
+연결을 요청하는 프로세스가 자신임을 알리기 위해 waiting 변수에 자신의 pid를 넣는다. 서버에서 연결 요청을 모두 처리 했을 때 보낼 시그널에 대한 핸들러를 설정한다. 서버에 연결 요청을 보낸다.
+
+#### Function : void disconnect();
+
+    void disconnect()
+    {
+        if(connected == 0) return;
+
+        if(signal(SIGUSR2, sigusr2_handler) == SIG_ERR) {
+            printf("Failed to set SIGUSR2 handler\n");
+            return;
+        }
+
+        pthread_mutex_lock(&(p_common->reg_mutex));
+        p_common->waiting = my_pid;
+        kill(p_common->server_pid, SIGUSR2);  
+        printf("Requested disconnection to server\n");
+        pause();
+        while(s_qid != -1);  
+        printf("Responsed OK to disconnect\n");
+        
+        connected = 0;
+    }
+
+서버와의 연결을 해제하는 함수이다. 서버와의 연결해제 요청에 대한 응답 시그널(SIGUSR2)에 대한 핸들러를 설정한다. 
+
+#### Function : void print_bmessages(), void print_pmessages();
+
+    void print_bmessages()
+    {
+        clear_console();
+        for(int i = 0; i < p_common->cont.msg_num; ++i) {
+            int idx = (p_common->cont.start_idx + i) % MAX_MSG;
+            Message * msg = p_common->cont.msg + idx;
+            gotoxy(i+1, 0);
+            printf("[%d]: %s\n", msg->from_pid, msg->msg);
+        }
+        gotoxy(winsize.ws_row-1, 0);
+        input_buf[input_buf_len] = '\0';
+        printf("Chat > %s", input_buf);
+    }
+
+    void print_pmessages()
+    {
+        clear_console();
+        int line_idx = 0;
+        for(int i = 0; i < personMsg.msg_num; ++i) {
+            Message * msg = personMsg.msg + i;
+            if(msg->from_pid == now_person || (msg->from_pid == my_pid && msg->to_pid == now_person)) {
+                gotoxy((line_idx++) + 1, 0);
+                printf("[%d]: %s\n", msg->from_pid, msg->msg);
+            }
+        }
+        gotoxy(winsize.ws_row-1, 0);
+        input_buf[input_buf_len] = '\0';
+        printf("Chat > %s", input_buf);
+    }
+
+Broadcast mode와 personal mode로 설정된 client process가 메세지를 콘솔 화면에 출력하는 함수이다. 각 함수 모두, 해당 메세지를 가지고 있는 자료구조의 인덱스를 통해 접근한다. 이후에, 저장된 자료구조를 출력한다. 아래 gotoxy라는 함수를 이용하여, 콘솔화면 상, 사용자의 입력이 화면 하단에 보이도록 조정한다.
+
+
 
