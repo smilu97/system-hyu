@@ -37,12 +37,7 @@
 /*
  * One message unit
  */
-typedef struct Message {
-    int type;
-    pid_t from_pid;
-    pid_t to_pid;
-    char msg[MSG_SIZE];
-} Message;
+M
 
 /*
  * Message including type for message queueing
@@ -84,14 +79,26 @@ typedef struct UserLinkNode {
 } UserLinkNode;
 
 typedef struct Common {
-    pid_t server_pid;
+    pid_t server_pid;  // 서버의 pid
 
+    /*
+     * 서버와 연결을 수립하거나 해제할 때 얻어야 하는 락
+     */
     pthread_mutex_t reg_mutex;
-    pid_t waiting;
-    RegResult reg_result;
+    pid_t waiting;  // 서버와 연결혹은 해제하고 있는 클라이언트의 pid
+    RegResult reg_result;  // 서버와의 연결혹은 해제의 결과가 저장되는 곳
 
+    /*
+     * 연결된 유저들에 대한 정보를 가리키는 해쉬컨테이너
+     * 서버의 힙 공간에 실제 정보가 들어있으므로 클라이언트에서는
+     * 접근하지 않는 것을 권장함
+     */
     UserLink * users[USER_POOL_SIZE];
     UserLinkNode * first_user;
+
+    /*
+     * 전체 메시지가 저장되는 곳
+     */
     MessageCont cont;
 } Common;
 

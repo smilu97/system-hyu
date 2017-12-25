@@ -1,5 +1,6 @@
-
 # Chatting Server & Client
+
+[About architecture](docs/arch.md)
 
 Made by 김영진, 김정현
 
