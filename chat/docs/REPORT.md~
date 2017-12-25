@@ -1,0 +1,137 @@
+# Messenger program using IPC (:Server, Client)
+## System programming Assignment, Interprocess communication
+
+Participants : 김영진 2016025241, 김정현 2014004448
+Date of preparation : Dec.25.2017 18:09:00
+
+Github repository : https://github.com/smilu97/system-hyu
+
+### 목표
+
+IPC의 Shared Memory와 Message Queue를 이용하여 broadcast chat과 personal chat을 구현한다. 이 프로그램은 각각의 process로 정의된 server와 여러개의 client들로 구성된다. 본 프로그램에서 사용되는 shared memory의 경우 messenger log를 기록하기 위해 사용된다. Message queue에 존재하는 PID와 input내용을 저장할 수 있다. Shared memory에 대한 구조체는 아래에 상세하게 기술되어 있다. 
+
+Server의 동작은 다음과 같이 정의된다. 각 Process의 message queue를 확인하여 broadcast 또는 personal chat인지 확인한 후, 전자의 경우 shared memory에 저장한 후 전체 터미널에 메세지 내용을 출력한다. 후자의 경우 shared memory에 저장하지 않고 특정 client로 보내는 process의 PID에 해당하는 message queue로 메세지를 전송해준다. 
+
+Client의 동작은 다음과 같이 정의된다. 각 process에는 하나의 message queue가 할당이 되며, 이 자료구조를 이용하여 broadcast 또는 personal chat을 실행한다. Client를 실행하면서 실행 환경을 전자 또는 후자로 선택할 수 있다. Client는 자신에게 온 메세지를 어떤 process로 부터 온 것인지 확인할 수 있다.
+
+### Structures and functions
+본 프로그램에서는 server process와 client process를 둘 다 관리하기 위한 common field data structure와 common usage function이 필요하다. 또한 각각의 server process와 client process를 관리하기 위한 private function들이 존재한다. 각각의 용도를 아래에서 자세하게 설명한다. 함수의 경우, 불필요한 설명을 생략하고 핵심적인 함수를 구체적으로 설명한다.
+
+### Structure & Functions : Common
+
+#### Structure : Message
+
+typedef struct Message {
+    int type;
+    pid_t from_pid;
+    pid_t to_pid;
+    char msg[MSG_SIZE];
+} Message;
+
+하나의 Message structure 객체는 위와 같이 정의된다. Message type, 발신 process pid, 수신 process pid, 그리고 메세지 하나의 크기가 MSG_SIZE(1024byte)로 정의되어 있다.
+
+#### Structure : QMessage
+
+typedef struct QMessage {
+    long type;
+    Message msg;
+} QMessage;
+
+메세지를 전송하기 위한 Qmessage structure는 위와 같이 정의된다. 식별을 위한 Qmessage type과 위에서 정의된 Message structure로 정의되어 있다. 
+
+#### Structure : MessageCont, RegResult, UserLink, UserLinkNode
+
+Server process에서 관리하는 shared memory는 doubly linked list의 circular queue의 형태로 유지된다. 각각의 node와 전체 doubly linked list를 관리하기 위한 구조체는 다음과 같다.
+
+typedef struct MessageCont {
+    int start_idx;
+    int msg_num;
+    Message msg[MAX_MSG];
+} MessageCont;
+
+전체 저장할 수 있는 message의 갯수가 100개로 제한되어 있다. 100개가 넘어가면 자동으로 새로운 message로 덮어씌우게 된다.
+
+typedef struct RegResult {
+    int s_qid;
+    int c_qid;
+} RegResult;
+
+Server ID와 Client ID를 함께 저장한다.
+//
+//
+
+typedef struct UserLink {
+    pid_t pid;
+    pthread_t th;
+    int s_qid;
+    int c_qid;
+    struct UserLink * next;
+    struct UserLink * prev;
+    struct UserLinkNode * node;
+} UserLink;
+
+typedef struct UserLinkNode {
+    UserLink * user;
+    struct UserLinkNode * next;
+    struct UserLinkNode * prev;
+} UserLinkNode;
+
+사용중인 process ID와 shared memory 내에서 doubly linked list로 저장된 message를 관리하기 위한 prev, next에 대한 포인터와 현재 사용중인 UserLink node에 대한 포인터로 정의된다.
+
+#### Structure : Common
+
+typedef struct Common {
+    pid_t server_pid;
+
+    pthread_mutex_t reg_mutex;
+    pid_t waiting;
+    RegResult reg_result;
+
+    UserLink * users[USER_POOL_SIZE];
+    UserLinkNode * first_user;
+    MessageCont cont;
+} Common;
+
+Common이라는 구조체를 이용하여 shared memory 전체를 관리할 수 있다.
+//
+//
+
+#### Function : void init_common(Common *p_common)
+
+void init_common(Common * p_common)
+{
+    init_MessageCont(&(p_common->cont));
+    p_common->server_pid = getpid();
+    p_common->waiting = 0;
+    p_common->first_user = NULL;
+    pthread_mutex_init(&(p_common->reg_mutex), NULL);
+    for(int idx = 0; idx < USER_POOL_SIZE; ++idx) {
+        p_common->users[idx] = NULL;
+    }
+}
+
+후에 server process를 실행할때 할당되는 shared memory를 초기화하는 함수다. 이는 init_Messagecont함수를 호출하여 Messagecont 구조체의 인덱스와 갯수를 0으로 초기화 한다. 또한 Common 구조체 모든 항목들에 대한 초기화를 실행한다.
+
+void push_MessageCont(MessageCont * p_cont, char * msg, pid_t from_pid, pid_t to_pid)
+{
+    int idx = (p_cont->start_idx + p_cont->msg_num) % MAX_MSG;
+    if(p_cont->msg_num >= MAX_MSG) {
+        ++(p_cont->start_idx);
+        --(p_cont->msg_num);
+    }
+    strcpy_cnt(p_cont->msg[idx].msg, msg, MSG_SIZE);
+    p_cont->msg[idx].from_pid = from_pid;
+    p_cont->msg[idx].to_pid = to_pid;
+    ++(p_cont->msg_num);
+}
+
+Message container 내에 
+
+
+
+
+
+### Server and its structures and functions
+
+### Client and its structures and functions
+
