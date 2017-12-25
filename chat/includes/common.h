@@ -37,7 +37,12 @@
 /*
  * One message unit
  */
-M
+typedef struct Message {
+    int type;
+    pid_t from_pid;
+    pid_t to_pid;
+    char msg[MSG_SIZE];
+} Message;
 
 /*
  * Message including type for message queueing
