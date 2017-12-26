@@ -587,5 +587,27 @@ Client을 사용할 mode를 i, b, p, q 중에 선택한다.
 
 Broadcast mode와 personal mode로 설정된 client process가 메세지를 콘솔 화면에 출력하는 함수이다. 각 함수 모두, 해당 메세지를 가지고 있는 자료구조의 인덱스를 통해 접근한다. 이후에, 저장된 자료구조를 출력한다. 아래 gotoxy라는 함수를 이용하여, 콘솔화면 상, 사용자의 입력이 화면 하단에 보이도록 조정한다.
 
-### 
+### 3. 결과
+
+본 프로그램의 전체적인 설명을 간단히 요약하자면, 이는 IPC를 이용하여 서버를 통하여 클라이언트 간의 통신을 가능하게 한다. 먼저 server process를 실행한 후에 client process를 실행하는 것을 원칙으로 한다. 
+
+Client process를 실행하게 되면 server process에는 client process의 연결이 요청되었다는 메세지와 함께 유저의 PID를 출력한다. 그 이후에 client process에서 i, b, p, q 네 가지 경우의 모드를 선택하여 프로그램을 실행한다.
+
+'i' mode를 선택한 경우, 클라이언트 프로세스가 수행할 수 있는 모드의 종류를 출력해준다. 이는 instruction함수에 선언되어 있다. 아래는 'i'를 이용하여 모드의 종류를 출력한 client의 출력 화면이다.
+
+![mode i](../stats/screenshot_i.png)
+
+'b' mode를 선택한 경우 broadcast messenger를 사용하게 된다. 이 상태에서는 모든 사용자들끼리 대화할 수 있다. 대화 기록은 서버에 최대 100개까지 저장이 되며, 그 이상의 채팅 기록이 담겨질 경우엔 가장 먼저 들어갔던 채팅 기록이 하나씩 없어진다. b mode를 나가고 싶은 경우엔 'q!'을 입력하여 나갈 수 있다. 아래는 하나의 서버를 통해 세 개의 client process가 통신을 하는 화면이다.
+
+![mode b](../stats/screenshot_b.png)
+
+'p' mode를 선택한 경우 personal messenger를 사용하게 된다. 따라서 해당 client process가 교신을 하고자 하는 또 다른 client process의 PID를 입력하게 되면 personal message를 보낼 수 있다. 이 상대에서는 일대일 교신이 가능하다. 여기서는 채팅하는 대상이 바뀔때 마다 기록이 말소되며, 마찬가지로 100개의 메세지가 저장이 된다. 동일하게 'q!'를 입력하여 나갈 수 있다. 아래는 두 client process가 교신을 하는 화면이다.
+
+![mode p](../stats/screenshot_p.png)
+
+'q' mode를 선택하는 경우, 해당 client process의 서버와의 연결 해제를 요청한 후에 종료된다. 
+
+![mode q](../stats/screenshot_q.png)
+
+
 
