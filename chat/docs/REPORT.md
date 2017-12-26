@@ -6,7 +6,7 @@ Date of preparation : Dec.25.2017 18:09:00
 
 Github repository : https://github.com/smilu97/system-hyu
 
-### 목표
+### 1. 목표
 
 IPC의 Shared Memory와 Message Queue를 이용하여 broadcast chat과 personal chat을 구현한다. 이 프로그램은 각각의 process로 정의된 server와 여러개의 client들로 구성된다. 본 프로그램에서 사용되는 shared memory의 경우 messenger log를 기록하기 위해 사용된다. Message queue에 존재하는 PID와 input내용을 저장할 수 있다. Shared memory에 대한 구조체는 아래에 상세하게 기술되어 있다. 
 
@@ -14,12 +14,12 @@ Server의 동작은 다음과 같이 정의된다. 각 Process의 message queue�
 
 Client의 동작은 다음과 같이 정의된다. 각 process에는 하나의 message queue가 할당이 되며, 이 자료구조를 이용하여 broadcast 또는 personal chat을 실행한다. Client를 실행하면서 실행 환경을 전자 또는 후자로 선택할 수 있다. Client는 자신에게 온 메세지를 어떤 process로 부터 온 것인지 확인할 수 있다.
 
-### Structures and functions
+### 2. Structures and functions
 본 프로그램에서는 server process와 client process를 둘 다 관리하기 위한 common field data structure와 common usage function이 필요하다. 또한 각각의 server process와 client process를 관리하기 위한 private function들이 존재한다. 각각의 용도를 아래에서 자세하게 설명한다. 함수의 경우, 불필요한 설명을 생략하고 핵심적인 함수를 구체적으로 설명한다.
 
-### Structure & Functions : Common
+### 2.1) Structure & Functions : Common
 
-#### Structure : Message
+#### 2.1.a) Structure : Message
 
     typedef struct Message {
         int type;
@@ -30,7 +30,7 @@ Client의 동작은 다음과 같이 정의된다. 각 process에는 하나의 m
 
 하나의 Message structure 객체는 위와 같이 정의된다. Message type, 발신 process pid, 수신 process pid, 그리고 메세지 하나의 크기가 MSG_SIZE(1024byte)로 정의되어 있다.
 
-#### Structure : QMessage
+#### 2.1.b) Structure : QMessage
 
     typedef struct QMessage {
         long type;
@@ -39,7 +39,7 @@ Client의 동작은 다음과 같이 정의된다. 각 process에는 하나의 m
 
 메세지를 전송하기 위한 Qmessage structure는 위와 같이 정의된다. 식별을 위한 Qmessage type과 위에서 정의된 Message structure로 정의되어 있다. 
 
-#### Structure : MessageCont, RegResult, UserLink, UserLinkNode
+#### 2.1.c) Structure : MessageCont, RegResult, UserLink, UserLinkNode
 
 Server process에서 관리하는 shared memory는 doubly linked list의 circular queue의 형태로 유지된다. 각각의 node와 전체 doubly linked list를 관리하기 위한 구조체는 다음과 같다.
 
@@ -76,7 +76,7 @@ Server ID와 Client ID를 함께 저장한다. 이는 structure Common내에서 
 
 사용중인 process ID와 shared memory 내에서 doubly linked list로 저장된 message를 관리하기 위한 prev, next에 대한 포인터와 현재 사용중인 UserLink node에 대한 포인터로 정의된다. 연결된 user들의 정보를 가리키는 hash container이다. Server process의 힙 공간에 실제 정보가 저장되므로, client process가 접근하지 않는것을 권장한다.
 
-#### Structure : Common
+#### 2.1.d) Structure : Common
 
     typedef struct Common {
         pid_t server_pid;
@@ -94,7 +94,7 @@ Common이라는 구조체를 이용하여 shared memory 전체를 관리할 수 
 
 요약하여, Common은 server process와 client process들이 공유하는 shared memory가 가지고 있는 구조체이다. `SHM_ID` 라는 매크로 선언으로 shared memory의 key값이 `common.h` 에 선언되어 있다. Server process는 이 SHM_ID를 키 값으로 가지는 shared memory 공간을 생성해서 자신이 머신에서 살아있음을 client process들이 알 수 있게 해준다.
 
-#### Function : void init_common(Common *p_common);
+#### 2.1.e) Function : void init_common(Common *p_common);
 
     void init_common(Common * p_common)
     {
@@ -110,7 +110,7 @@ Common이라는 구조체를 이용하여 shared memory 전체를 관리할 수 
 
 Server process를 실행할때 할당되는 shared memory를 초기화하는 함수다. 이는 init_Messagecont함수를 호출하여 Messagecont 구조체의 인덱스와 갯수를 0으로 초기화 한다. 또한 Common 구조체 모든 항목들에 대한 초기화를 실행한다.
 
-#### Function : void push_MessageCont(MessageCont * p_cont, char * msg, pid_t from_pid, pid_t to_pid);
+#### 2.1.f) Function : void push_MessageCont(MessageCont * p_cont, char * msg, pid_t from_pid, pid_t to_pid);
 
     void push_MessageCont(MessageCont * p_cont, char * msg, pid_t from_pid, pid_t to_pid)
     {
@@ -127,9 +127,9 @@ Server process를 실행할때 할당되는 shared memory를 초기화하는 함
 
 Message container내에 새로운 메세지를 넣은 함수다. 이는 broadcast mode로 선택되었을 때 server process가 모든 client process의 message queue로 보내거나, client간에 personal mode로 선택되어 메세지를 보낼 경우에 사용된다. Container에 넣기 전에 circular queue의 조건을 만족시키기 위한 index와 객체의 갯수를 확인한 후에 넣는다.
 
-### Functions : Server
+### 2.2) Functions : Server
 
-#### Function : int main(int argc, char** argv, char** env);
+#### 2.2.a) Function : int main(int argc, char** argv, char** env);
 
     int main(int argc, char** argv, char** env)
     {
@@ -141,7 +141,7 @@ Message container내에 새로운 메세지를 넣은 함수다. 이는 broadcas
 
 Server process는 쉽게 말해 중개하는 역할을 가진 process이다. Client process의 요청에 따라서 수동적으로 일련의 일들을 수행하는데, 따라서 이는 처음 server을 초기화 한 후, client process의 연결이 올 때까지 대기한다. 
 
-#### Function : int init_server();
+#### 2.2.b) Function : int init_server();
 
     int init_server()
     {
@@ -168,7 +168,7 @@ Server process는 쉽게 말해 중개하는 역할을 가진 process이다. Cli
 
 Server process의 기능을 수행하기 위한 초기화 함수다. 먼저 server process와 client process간의 정보 공유를 위한 shared memory의 공간을 요청한다. Shared memory의 공간을 할당한다. Client process들과 통신을 하기 위한 message queue에 사용할 시작 번호를 last_qid에 설정한다. 앞서 할당한 shared memory 공간을 초기화한 후 client process의 연결을 대기한다.
 
-#### Function : void destroy_server();
+#### 2.2.c) Function : void destroy_server();
 
     void destroy_server()
     {
@@ -184,7 +184,7 @@ Server process의 기능을 수행하기 위한 초기화 함수다. 먼저 serv
 
 Server을 해제하기 위해 모든 client들과의 연결을 끊고 할당했던 shared memory를 해제한다. 우선 모든 user 정보를 지운 후, 할당한 shared memory를 주소에서 분리시키고 해제한다.
 
-#### Function : void sigusr1_handler(int signo); void sigusr2_handler(int signo);
+#### 2.2.d) Function : void sigusr1_handler(int signo); void sigusr2_handler(int signo);
 
 다음 두 함수는 연결 요청과 해제를 의미하도록 사용된다. 전자는 client process의 연결 요청을 처리하고, 후자는 연결 해제를 처리한다.
 
@@ -210,7 +210,7 @@ Client는 연결 요청을 보내기 전에 shared memory 영역에 있는 waiti
 
 전자 함수와 동일하게 요청을 보낸 client process를 식별하기 위해 waiting 변수를 읽는다. 해당 client process를 위한 user객체를 해제한다.
 
-#### Function : void sigint_handler(int signo);
+#### 2.2.e) Function : void sigint_handler(int signo);
 
     void sigint_handler(int signo)
     {
@@ -220,7 +220,7 @@ Client는 연결 요청을 보내기 전에 shared memory 영역에 있는 waiti
 갑자기 종료되더라도 적당한 수순을 밟고 종료되도록 만드는 함수다.
 
 
-#### Function : int listen();
+#### 2.2.f) Function : int listen();
 
     int listen()
     {
@@ -239,7 +239,7 @@ Client는 연결 요청을 보내기 전에 shared memory 영역에 있는 waiti
 Server process가 client process의 요청을 받아들이기 위한 대기 모드로 진입하는 함수다. 위에서 언급한 세 가지 함수가 사용된다. 대기하는 중, 갑작스러운 종료가 발생하여도 일정 수순을 밟은 후 종료될 수 있도록 만들어준다. 종료되지 않는 경우엔, client process의 연결의 요청 또는 해제에 대한 작업을 처리한다. listen 함수가 호출되었을 때, 각 signal의 핸들러를 변경해준다. 마지막으로, 부모 프로세스가 종료되지 않도록 무한히 대기하도록 만든다. 
 
 
-#### Function : void * watch(void * varg);
+#### 2.2.g) Function : void * watch(void * varg);
 
 User의 연결요청에 의해 그 user과의 통신을 위한 thread를 생성한다. 이는 create_user함수에서 생성된다. 그 thread는 그 user와의 통신을 만들어진 두 개의 message queue중에 server가 수신을 위해 만들어진 message queue에 무언가 들어있는지 계속적으로 검사한 후에, 상응하는 행동을 취한다. 아래 watch함수는 위의 행동을 하기 위해 pthread_create에 들어가는 함수다.
 
@@ -278,7 +278,7 @@ User의 연결요청에 의해 그 user과의 통신을 위한 thread를 생성�
 
 Message queue에 메세지가 들어가있는지 계속해서 확인한다. 메세지가 broadcast mode 또는 personal mode인지 확인을 해서 broadcast라면 메세지 저장소에 그것을 등록하고 모든 유저에게 새로운 매세지가 존재함을 알린다. 만약 personal 메세지라면, 이 메세지를 받는 user 객체를 찾은 뒤에 해당 process에 알려준다. 
 
-#### Function : UserLink * find_user(pit_t pid);
+#### 2.2.h) Function : UserLink * find_user(pit_t pid);
 
     UserLink * find_user(pid_t pid)
     {
@@ -295,7 +295,7 @@ Message queue에 메세지가 들어가있는지 계속해서 확인한다. 메�
 연결되어 있는 user 객체들 중에 해당 pid를 가진 객체를 찾는다. 이러한 user 객체들은 pid를 키값으로 하는 해쉬맵에 포인터가 저장이 되어있다. 해쉬맵은 체인 해쉬맵으로 구현되어 있다. pid를 해쉬함수에 넣고 맵의 어느 리스트에 들어있는지 확인 한 후 pid를 가진 객체를 찾는다.
 
 
-#### Function : UserLink * create_user(pid_t pid);	
+#### 2.2.i) Function : UserLink * create_user(pid_t pid);	
 
     UserLink * create_user(pid_t pid)
     {
@@ -335,7 +335,7 @@ Message queue에 메세지가 들어가있는지 계속해서 확인한다. 메�
 
 유저의 연결요청에 대한 처리가 끝나면, 통신에 사용될 메세지 큐의 번호를 클라이언트에게 알려주기 위해 공유 메모리에 그 번호들을 적는다. 클라이언트들은 연결 요청에 대한 응답을 받으면 이 번호를 읽어서 통신을 시작한다. 
 
-#### Function : int remove_user(pid_t pid);
+#### 2.2.j) Function : int remove_user(pid_t pid);
 
     int remove_user(pid_t pid)
     {
@@ -374,7 +374,7 @@ Message queue에 메세지가 들어가있는지 계속해서 확인한다. 메�
 
 해당 유저와의 연결을 해제하는 함수이다. 해당 유저를 찾기 위해 유저객체가 체인 해쉬맵의 어느 리스트에 있는지 확인한다. 순차적으로 다음과 같은 순서로 진행한다. 해쉬맵에 존재하는 유저객체를 제외한다. 리스트에 존재하는 유저 객체를 제외한다. 유저와의 통신에 사용하던 두 개의 메시지큐를 삭제한다. 유저객체를 해제한다.
 
-#### Function : int send_broadcast_msg(char * msg, pid_t pid);
+#### 2.2.k) Function : int send_broadcast_msg(char * msg, pid_t pid);
 
     int send_broadcast_msg(char * msg, pid_t pid)
     {
@@ -399,7 +399,7 @@ Message queue에 메세지가 들어가있는지 계속해서 확인한다. 메�
 
 공유 메모리의 메세지 컨테이너에 새로운 메세지를 넣고 연결되어 있는 모든 유저들에게 새로운 전체 메세지가 있음을 알린다. 메세지 컨테이너에 새로운 메세지를 넣는다. 메세지를 큐로 보내기 위한 객체를 준비한 후 모든 유저들에게 알린다.
 
-#### Function : int send_personal_msg(UserLink * usr, pid_t from, char * msg);
+#### 2.2.l) Function : int send_personal_msg(UserLink * usr, pid_t from, char * msg);
 
     int send_personal_msg(UserLink * usr, pid_t from, char * msg)
     {
@@ -417,9 +417,9 @@ Message queue에 메세지가 들어가있는지 계속해서 확인한다. 메�
 
 특정 유저에게 메세지를 전송한다.
 
-### Functions : Client
+### 2.3) Functions : Client
 
-#### Function : int main(int argc, char** argv, char** env);
+#### 2.3.a) Function : int main(int argc, char** argv, char** env);
 
     int main(int argc, char** argv, char** env)
     {
@@ -479,7 +479,7 @@ Message queue에 메세지가 들어가있는지 계속해서 확인한다. 메�
 
 Client을 사용할 mode를 i, b, p, q 중에 선택한다.
 
-#### Function : void connect();
+#### 2.3.b) Function : void connect();
 
     void connect()
     {
@@ -529,7 +529,7 @@ Client을 사용할 mode를 i, b, p, q 중에 선택한다.
 
 연결을 요청하는 프로세스가 자신임을 알리기 위해 waiting 변수에 자신의 pid를 넣는다. 서버에서 연결 요청을 모두 처리 했을 때 보낼 시그널에 대한 핸들러를 설정한다. 서버에 연결 요청을 보낸다.
 
-#### Function : void disconnect();
+#### 2.3.c) Function : void disconnect();
 
     void disconnect()
     {
@@ -553,7 +553,7 @@ Client을 사용할 mode를 i, b, p, q 중에 선택한다.
 
 서버와의 연결을 해제하는 함수이다. 서버와의 연결해제 요청에 대한 응답 시그널(SIGUSR2)에 대한 핸들러를 설정한다. 
 
-#### Function : void print_bmessages(), void print_pmessages();
+#### 2.3.d) Function : void print_bmessages(), void print_pmessages();
 
     void print_bmessages()
     {
@@ -587,5 +587,5 @@ Client을 사용할 mode를 i, b, p, q 중에 선택한다.
 
 Broadcast mode와 personal mode로 설정된 client process가 메세지를 콘솔 화면에 출력하는 함수이다. 각 함수 모두, 해당 메세지를 가지고 있는 자료구조의 인덱스를 통해 접근한다. 이후에, 저장된 자료구조를 출력한다. 아래 gotoxy라는 함수를 이용하여, 콘솔화면 상, 사용자의 입력이 화면 하단에 보이도록 조정한다.
 
-
+### 
 
