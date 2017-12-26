@@ -131,7 +131,7 @@ int main(int argc, char** argv, char** env)
             show_informations();
             break;
         }
-        if(cmd != '\n' && cmd != 'b') while(getchar() != '\n');
+        if(cmd != '\n' && cmd != 'b' && cmd != 'p') while(getchar() != '\n');
         mode = MODE_INPUT;
         printf("Input > ");
     }
@@ -302,7 +302,8 @@ void print_pmessages()
     clear_console();
     int line_idx = 0;
     for(int i = 0; i < personMsg.msg_num; ++i) {
-        Message * msg = personMsg.msg + i;
+        int idx = (personMsg.start_idx + i) % MAX_MSG;
+        Message * msg = personMsg.msg + idx;
         if(msg->from_pid == now_person || (msg->from_pid == my_pid && msg->to_pid == now_person)) {
             gotoxy((line_idx++) + 1, 0);
             printf("[%d]: %s\n", msg->from_pid, msg->msg);
@@ -331,6 +332,8 @@ void set_broadcast()
         if(ch == '\n') {
             input_buf[input_buf_len] = '\0';
             if(strcmp(input_buf, "q!") == 0) {
+                clear_console();
+                show_informations();
                 break;
             }
             send_broadcast_msg(input_buf);
@@ -346,6 +349,7 @@ void set_personal(pid_t usr)
     if(now_person != usr) {
         init_MessageCont(&personMsg);
     }
+    now_person = usr;
     getchar();
     input_buf_len = 0;
     print_pmessages();
@@ -354,10 +358,12 @@ void set_personal(pid_t usr)
         if(ch == '\n') {
             input_buf[input_buf_len] = '\0';
             if(strcmp(input_buf, "q!") == 0) {
+                clear_console();
+                show_informations();
                 break;
             }
-            send_personal_msg(input_buf, now_person);
             input_buf_len = 0;
+            send_personal_msg(input_buf, now_person);
         } else {
             input_buf[input_buf_len++] = ch;
         }
